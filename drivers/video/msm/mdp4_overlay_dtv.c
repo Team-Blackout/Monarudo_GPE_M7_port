@@ -26,16 +26,15 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
-#include <mach/debug_display.h>
 
 #include "mdp.h"
 #include "msm_fb.h"
 #include "mdp4.h"
+#include <mach/msm_rtb_enable.h>
 
 #define DTV_BASE	0xD0000
 
 static int dtv_enabled;
-static int dtv_pipe_ready = 0;
 
 #ifdef DEBUG
 static void __mdp_outp(uint32 port, uint32 value)
@@ -160,7 +159,7 @@ void mdp4_dtv_pipe_queue(int cndx, struct mdp4_overlay_pipe *pipe)
 static void mdp4_dtv_blt_ov_update(struct mdp4_overlay_pipe *pipe);
 static void mdp4_dtv_wait4dmae(int cndx);
 
-int mdp4_dtv_pipe_commit(int cndx, int wait)
+int mdp4_dtv_pipe_commit(void)
 {
 
 	int  i, undx;
@@ -172,7 +171,7 @@ int mdp4_dtv_pipe_commit(int cndx, int wait)
 	unsigned long flags;
 	int cnt = 0;
 
-	vctrl = &vsync_ctrl_db[cndx];
+	vctrl = &vsync_ctrl_db[0];
 	mutex_lock(&vctrl->update_lock);
 	undx =  vctrl->update_ndx;
 	vp = &vctrl->vlist[undx];
@@ -183,24 +182,6 @@ int mdp4_dtv_pipe_commit(int cndx, int wait)
 	if (vp->update_cnt == 0) {
 		mutex_unlock(&vctrl->update_lock);
 		return 0;
-	}
-
-	if(!dtv_pipe_ready) {
-		for (i = 0; i < OVERLAY_PIPE_MAX; i++, pipe++) {
-			real_pipe = mdp4_overlay_ndx2pipe(i);
-			if (real_pipe && real_pipe->pipe_used != 0
-				&& real_pipe->pipe_type != OVERLAY_TYPE_BF
-				&& real_pipe->mixer_num == MDP4_MIXER1) {
-				dtv_pipe_ready = true;
-				break;
-			}
-		}
-
-		if(!dtv_pipe_ready && dtv_enabled) {
-			PR_DISP_INFO("Dtv real pipe is not ready, skip this time\n");
-			mutex_unlock(&vctrl->update_lock);
-			return 0;
-		}
 	}
 
 	vctrl->update_ndx++;
@@ -244,9 +225,6 @@ int mdp4_dtv_pipe_commit(int cndx, int wait)
 	}
 	spin_unlock_irqrestore(&vctrl->spin_lock, flags);
 	mdp4_stat.overlay_commit[pipe->mixer_num]++;
-
-	if (wait)
-		mdp4_dtv_wait4dmae(cndx);
 
 	return cnt;
 }
@@ -319,7 +297,7 @@ static void mdp4_dtv_wait4dmae(int cndx)
 	wait_for_completion(&vctrl->dmae_comp);
 }
 
-ssize_t mdp4_dtv_show_event(struct device *dev,
+static ssize_t vsync_show_event(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	int cndx;
@@ -368,7 +346,7 @@ void mdp4_dtv_vsync_init(int cndx)
 	init_completion(&vctrl->vsync_comp);
 	init_completion(&vctrl->ov_comp);
 	init_completion(&vctrl->dmae_comp);
-	atomic_set(&vctrl->suspend, 1);
+	atomic_set(&vctrl->suspend, 0);
 	spin_lock_init(&vctrl->spin_lock);
 }
 
@@ -506,16 +484,6 @@ static int mdp4_dtv_start(struct msm_fb_data_type *mfd)
 	
 
 	
-	if((var->yres == 480) || (var->yres == 576)){
-		if(var->xres == 640 && var->yres == 480)
-			mdp4_set_limit_range(false);
-		else
-			mdp4_set_limit_range(true);
-	}
-	else
-		mdp4_set_limit_range(false);
-
-	
 	MDP_OUTP(MDP_BASE + DTV_BASE, 1);
 
 	return 0;
@@ -534,6 +502,15 @@ static int mdp4_dtv_stop(struct msm_fb_data_type *mfd)
 
 	return 0;
 }
+
+static DEVICE_ATTR(vsync_event, S_IRUGO, vsync_show_event, NULL);
+static struct attribute *vsync_fs_attrs[] = {
+	&dev_attr_vsync_event.attr,
+	NULL,
+};
+static struct attribute_group vsync_fs_attr_group = {
+	.attrs = vsync_fs_attrs,
+};
 
 int mdp4_dtv_on(struct platform_device *pdev)
 {
@@ -554,9 +531,7 @@ int mdp4_dtv_on(struct platform_device *pdev)
 
 	vctrl->dev = mfd->fbi->dev;
 
-#if 0
 	mdp_footswitch_ctrl(TRUE);
-#endif
 	
 	mdp_clk_ctrl(1);
 
@@ -576,7 +551,19 @@ int mdp4_dtv_on(struct platform_device *pdev)
 		pr_warn("%s: panel_next_on failed", __func__);
 
 	atomic_set(&vctrl->suspend, 0);
+	if (!vctrl->sysfs_created) {
+		ret = sysfs_create_group(&vctrl->dev->kobj,
+			&vsync_fs_attr_group);
+		if (ret) {
+			pr_err("%s: sysfs group creation failed, ret=%d\n",
+				__func__, ret);
+			return ret;
+		}
 
+		kobject_uevent(&vctrl->dev->kobj, KOBJ_ADD);
+		pr_debug("%s: kobject_uevent(KOBJ_ADD)\n", __func__);
+		vctrl->sysfs_created = 1;
+	}
 	pr_info("%s:\n", __func__);
 
 	return ret;
@@ -602,7 +589,6 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	}
 
 	complete_all(&vctrl->vsync_comp);
-	vctrl->wait_vsync_cnt = 0;
 
 	pipe = vctrl->base_pipe;
 	if (pipe != NULL) {
@@ -628,12 +614,10 @@ int mdp4_dtv_off(struct platform_device *pdev)
 	mdp4_overlay_panel_mode_unset(MDP4_MIXER1, MDP4_PANEL_DTV);
 
 	ret = panel_next_off(pdev);
-#if 0
 	mdp_footswitch_ctrl(FALSE);
-#endif
+
 	
 	mdp_clk_ctrl(0);
-	dtv_pipe_ready = 0;
 
 	pr_info("%s:\n", __func__);
 	return ret;
@@ -908,7 +892,6 @@ void mdp4_dtv_set_black_screen(void)
 
 	vctrl = &vsync_ctrl_db[cndx];
 	if (vctrl->base_pipe == NULL || !hdmi_prim_display) {
-		pr_err("dtv_pipe is not configured yet\n");
 		return;
 	}
 	rgb_base = MDP_BASE + MDP4_RGB_BASE;
@@ -1029,9 +1012,7 @@ void mdp4_dtv_overlay(struct msm_fb_data_type *mfd)
 	}
 
 	mutex_lock(&mfd->dma->ov_mutex);
-	mdp4_overlay_mdp_perf_upd(mfd, 1);
-	if (mdp4_dtv_pipe_commit(cndx, 0))
+	if (mdp4_dtv_pipe_commit())
 		mdp4_dtv_wait4dmae(0);
-	mdp4_overlay_mdp_perf_upd(mfd, 0);
 	mutex_unlock(&mfd->dma->ov_mutex);
 }

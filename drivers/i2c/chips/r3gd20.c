@@ -156,6 +156,7 @@ static const struct output_rate odr_table[] = {
 	{	11,	ODR095|BW00},
 };
 
+static int use_smbus;
 
 static const struct r3gd20_gyr_platform_data default_r3gd20_gyr_pdata = {
 	.fs_range = R3GD20_GYR_FS_2000DPS,
@@ -212,8 +213,6 @@ struct r3gd20_data {
 	int cali_data_x;
 	int cali_data_y;
 	int cali_data_z;
-
-	int is_suspended;
 };
 
 #ifdef HTC_WQ
@@ -229,7 +228,7 @@ static int r3gd20_i2c_read(struct r3gd20_data *gyr,
 	u8 reg = buf[0];
 	u8 cmd = reg;
 
-#if 0
+
 	if (use_smbus) {
 		if (len == 1) {
 			ret = i2c_smbus_read_byte_data(gyr->client, cmd);
@@ -267,7 +266,7 @@ static int r3gd20_i2c_read(struct r3gd20_data *gyr,
 		}
 		return len; 
 	}
-#endif 
+
 	
 	ret = i2c_master_send(gyr->client, &cmd, sizeof(cmd));
 	if (ret != sizeof(cmd))
@@ -283,7 +282,7 @@ static int r3gd20_i2c_write(struct r3gd20_data *gyr, u8 *buf, int len)
 
 	reg = buf[0];
 	value = buf[1];
-#if 0
+
 	if (use_smbus) {
 		if (len == 1) {
 			ret = i2c_smbus_write_byte_data(gyr->client, reg, value);
@@ -311,7 +310,7 @@ static int r3gd20_i2c_write(struct r3gd20_data *gyr, u8 *buf, int len)
 			return ret;
 		}
 	}
-#endif 
+
 	ret = i2c_master_send(gyr->client, buf, len+1);
 	return (ret == len+1) ? 0 : ret;
 }
@@ -635,14 +634,12 @@ static void polling_do_work(struct work_struct *w)
 
 	mutex_unlock(&gyro->lock);
 
-	DIF("interval = %d, gyro->is_suspended = %d\n", gyro->input_poll_dev->
-					 poll_interval, gyro->is_suspended);
+	DIF("interval = %d\n", gyro->input_poll_dev->
+					 poll_interval);
 
-	if (gyro->is_suspended != 1) {
-		queue_delayed_work(gyro->gyro_wq, &polling_work,
-			msecs_to_jiffies(gyro->input_poll_dev->
-						 poll_interval));
-	}
+	queue_delayed_work(gyro->gyro_wq, &polling_work,
+		msecs_to_jiffies(gyro->input_poll_dev->
+					 poll_interval));
 }
 #endif 
 
@@ -1529,7 +1526,8 @@ static int r3gd20_probe(struct i2c_client *client,
 {
 	struct r3gd20_data *gyro;
 
-	
+	u32 smbus_func = I2C_FUNC_SMBUS_BYTE_DATA |
+			I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_I2C_BLOCK ;
 
 	int err = -1;
 
@@ -1538,9 +1536,14 @@ static int r3gd20_probe(struct i2c_client *client,
 	
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_warn(&client->dev, "client not i2c capable\n");
-		
-		err = -ENODEV;
-		goto err0;
+		if (i2c_check_functionality(client->adapter, smbus_func)) {
+			use_smbus = 1;
+			dev_warn(&client->dev, "client using SMBUS\n");
+		} else {
+			err = -ENODEV;
+			dev_err(&client->dev, "client nor SMBUS capable\n");
+			goto err0;
+		}
 	}
 
 	
@@ -1601,7 +1604,6 @@ static int r3gd20_probe(struct i2c_client *client,
 	gyro->resume_state[RES_FIFO_CTRL_REG] = ALL_ZEROES;
 
 	gyro->polling_enabled = true;
-	gyro->is_suspended = 0;
 
 	err = r3gd20_device_power_on(gyro);
 	if (err < 0) {
@@ -1748,14 +1750,14 @@ static int r3gd20_suspend(struct i2c_client *client, pm_message_t mesg)
 	u8 buf[2];
 	int err = -1;
 
-	data->is_suspended = 1;
-	I("%s++: data->is_suspended = %d\n", __func__, data->is_suspended);
+	DIF("%s: ++\n", __func__);
 
 #if DEBUG
 	I("r3gd20_suspend\n");
 #endif 
 
 	
+		mutex_lock(&data->lock);
 		if (data->polling_enabled) {
 			D("polling disabled\n");
 #ifdef HTC_WQ
@@ -1766,7 +1768,6 @@ static int r3gd20_suspend(struct i2c_client *client, pm_message_t mesg)
 			
 		}
 
-		mutex_lock(&data->lock);
 #ifdef SLEEP
 		err = r3gd20_register_update(data, buf, CTRL_REG1,
 				0x0F, (ENABLE_NO_AXES | PM_NORMAL));
@@ -1778,10 +1779,7 @@ static int r3gd20_suspend(struct i2c_client *client, pm_message_t mesg)
 	
 
 #endif 
-	if (data && (data->pdata->power_LPM))
-		data->pdata->power_LPM(1);
-
-	I("%s:--\n", __func__);
+	D("%s:--\n", __func__);
 	return err;
 }
 
@@ -1792,7 +1790,7 @@ static int r3gd20_resume(struct i2c_client *client)
 	u8 buf[2];
 	int err = -1;
 
-	I("%s:++\n", __func__);
+	D("%s:++\n", __func__);
 #if DEBUG
 	I("r3gd20_resume\n");
 #endif 
@@ -1824,8 +1822,7 @@ static int r3gd20_resume(struct i2c_client *client)
 	}
 
 #endif 
-	data->is_suspended = 0;
-	I("%s--: data->is_suspended = %d\n", __func__, data->is_suspended);
+	D("%s:--\n", __func__);
 	return 0;
 }
 

@@ -340,13 +340,13 @@ void *pil_get(const char *name)
 	struct pil_device *pil;
 	struct pil_device *pil_d;
 	void *retval;
-#ifdef CONFIG_MSM8960_ONLY
 	static int modem_initialized = 0;
 	int loop_count = 0;
-#endif
 
 	if (!name)
 		return NULL;
+	
+	printk("%s: %s(%d) for %s\n", __func__, current->comm, current->pid, name);
 
 	pil = retval = find_peripheral(name);
 	if (!pil)
@@ -362,7 +362,9 @@ void *pil_get(const char *name)
 		goto err_depends;
 	}
 
-#ifdef CONFIG_MSM8960_ONLY
+	
+	printk("%s: pil_get %s sucessfully, pil->count:%d\n", __func__, name, pil->count);
+
 	if (!strcmp("modem", name)) {
 		while (unlikely(!modem_initialized && strcmp("rmt_storage", current->comm) && loop_count++ < 10)) {
 			
@@ -370,14 +372,11 @@ void *pil_get(const char *name)
 			msleep(500);
 		}
 	}
-#endif
 	mutex_lock(&pil->lock);
 	if (!pil->count) {
 		if (!strcmp("modem", name)) {
 			printk("%s: %s(%d) for %s\n", __func__, current->comm, current->pid, name);
-#ifdef CONFIG_MSM8960_ONLY
 			modem_initialized = 1;
-#endif
 		}
 		ret = load_image(pil);
 		if (ret) {
@@ -419,15 +418,8 @@ void pil_put(void *peripheral_handle)
 	if (WARN(!pil->count, "%s: %s: Reference count mismatch\n",
 			pil->desc->name, __func__))
 		goto err_out;
-#ifdef CONFIG_MACH_DUMMY
-	if (pil->count == 1)
-		goto unlock;
-#endif
 	if (!--pil->count)
 		pil_shutdown(pil);
-#ifdef CONFIG_MACH_DUMMY
-unlock:
-#endif
 	mutex_unlock(&pil->lock);
 
 	pil_d = find_peripheral(pil->desc->depends_on);

@@ -35,6 +35,7 @@
 static int cursor_enabled;
 
 #include "mdp4.h"
+#include <mach/msm_rtb_enable.h>
 
 #if	defined(CONFIG_FB_MSM_OVERLAY) && defined(CONFIG_FB_MSM_MDP40)
 static struct workqueue_struct *mdp_cursor_ctrl_wq;

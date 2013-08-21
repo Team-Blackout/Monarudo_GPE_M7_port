@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -21,9 +21,13 @@
 #include "z180.h"
 #include "z180_reg.h"
 #include "z180_trace.h"
+#include <mach/msm_rtb_enable.h>
 
 #define DRIVER_VERSION_MAJOR   3
 #define DRIVER_VERSION_MINOR   1
+
+#define Z180_DEVICE(device) \
+		KGSL_CONTAINER_OF(device, struct z180_device, dev)
 
 #define GSL_VGC_INT_MASK \
 	 (REG_VGC_IRQSTATUS__MH_MASK | \
@@ -38,12 +42,16 @@
 #define VGV3_CONTROL_MARKADD_FSHIFT 0
 #define VGV3_CONTROL_MARKADD_FMASK 0xfff
 
+#define Z180_PACKET_SIZE 15
 #define Z180_MARKER_SIZE 10
 #define Z180_CALL_CMD     0x1000
 #define Z180_MARKER_CMD   0x8000
 #define Z180_STREAM_END_CMD 0x9000
 #define Z180_STREAM_PACKET 0x7C000176
 #define Z180_STREAM_PACKET_CALL 0x7C000275
+#define Z180_PACKET_COUNT 8
+#define Z180_RB_SIZE (Z180_PACKET_SIZE*Z180_PACKET_COUNT \
+			  *sizeof(uint32_t))
 
 #define NUMTEXUNITS             4
 #define TEXUNITREGCOUNT         25
@@ -359,8 +367,8 @@ static int z180_idle(struct kgsl_device *device)
 	if (timestamp_cmp(z180_dev->current_timestamp,
 		z180_dev->timestamp) > 0)
 		status = z180_wait(device, NULL,
-				z180_dev->current_timestamp,
-				Z180_IDLE_TIMEOUT);
+			z180_dev->current_timestamp,
+			Z180_IDLE_TIMEOUT);
 
 	if (status)
 		KGSL_DRV_ERR(device, "z180_waittimestamp() timed out\n");
@@ -809,7 +817,6 @@ static int z180_wait(struct kgsl_device *device,
 	else if (timeout == 0) {
 		status = -ETIMEDOUT;
 		kgsl_pwrctrl_set_state(device, KGSL_STATE_HUNG);
-		kgsl_postmortem_dump(device, 0);
 	} else
 		status = timeout;
 
@@ -896,7 +903,6 @@ static const struct kgsl_functable z180_functable = {
 	.drawctxt_create = NULL,
 	.drawctxt_destroy = z180_drawctxt_destroy,
 	.ioctl = NULL,
-	.postmortem_dump = z180_dump,
 };
 
 static struct platform_device_id z180_id_table[] = {

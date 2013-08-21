@@ -1617,7 +1617,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 {
 	struct page *page;
 
-	if (!order || (gfp_mask & __GFP_NO_COMPACT))
+	if (!order)
 		return NULL;
 
 	if (compaction_deferred(preferred_zone, order)) {
@@ -4567,7 +4567,6 @@ static struct trace_print_flags pageflag_names[] = {
 #ifdef CONFIG_MEMORY_FAILURE
 	{1UL << PG_hwpoison,		"hwpoison"	},
 #endif
-	{1UL << PG_readahead,           "PG_readahead"  },
 	{-1UL,				NULL		},
 };
 

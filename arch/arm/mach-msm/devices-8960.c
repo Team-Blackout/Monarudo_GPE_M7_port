@@ -19,7 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/coresight.h>
 #include <asm/clkdev.h>
-#include <mach/kgsl.h>
+#include <linux/msm_kgsl.h>
 #include <linux/android_pmem.h>
 #include <mach/irqs-8960.h>
 #include <mach/dma.h>
@@ -55,7 +55,6 @@
 #include "scm-pas.h"
 #include <mach/msm_dcvs.h>
 #include <mach/iommu_domains.h>
-#include <mach/msm_xo.h>
 
 #ifdef CONFIG_MSM_MPM
 #include <mach/mpm.h>
@@ -79,14 +78,11 @@
 #define MSM_GSBI12_PHYS		0x12480000
 
 #define MSM_UART2DM_PHYS	(MSM_GSBI2_PHYS + 0x40000)
-#define MSM_UART3DM_PHYS	(MSM_GSBI3_PHYS + 0x40000)
 #define MSM_UART4DM_PHYS	(MSM_GSBI4_PHYS + 0x40000)
 #define MSM_UART5DM_PHYS	(MSM_GSBI5_PHYS + 0x40000)
 #define MSM_UART6DM_PHYS	(MSM_GSBI6_PHYS + 0x40000)
 #define MSM_UART8DM_PHYS	(MSM_GSBI8_PHYS + 0x40000)
 #define MSM_UART9DM_PHYS	(MSM_GSBI9_PHYS + 0x40000)
-#define MSM_UART10DM_PHYS	(MSM_GSBI10_PHYS + 0x40000)
-#define MSM_UART12DM_PHYS	0x12490000
 
 #define MSM_GSBI1_QUP_PHYS	(MSM_GSBI1_PHYS + 0x80000)
 #define MSM_GSBI2_QUP_PHYS	(MSM_GSBI2_PHYS + 0x80000)
@@ -263,33 +259,6 @@ struct platform_device msm8960_device_uart_gsbi2 = {
 	.resource	= resources_uart_gsbi2,
 };
 
-static struct resource resources_uart_gsbi3[] = {
-	{
-		.start	= GSBI3_UARTDM_IRQ,
-		.end	= GSBI3_UARTDM_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART3DM_PHYS,
-		.end	= MSM_UART3DM_PHYS + PAGE_SIZE - 1,
-		.name	= "uartdm_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MSM_GSBI3_PHYS,
-		.end	= MSM_GSBI3_PHYS + PAGE_SIZE - 1,
-		.name	= "gsbi_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-struct platform_device msm8960_device_uart_gsbi3 = {
-	.name	= "msm_serial_hsl",
-	.id	= 1,
-	.num_resources	= ARRAY_SIZE(resources_uart_gsbi3),
-	.resource	= resources_uart_gsbi3,
-};
-
 #ifdef CONFIG_GSBI4_UARTDM
 static struct resource msm_uart_dm4_resources[] = {
 	{
@@ -335,56 +304,6 @@ struct platform_device msm_device_uart_dm4 = {
 	},
 };
 #endif 
-
-#ifdef CONFIG_GSBI5_UARTDM
-static struct resource msm_uart_dm5_resources[] = {
-	{
-		.start	= MSM_UART5DM_PHYS,
-		.end	= MSM_UART5DM_PHYS + PAGE_SIZE - 1,
-		.name	= "uartdm_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= GSBI5_UARTDM_IRQ,
-		.end	= GSBI5_UARTDM_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_GSBI5_PHYS,
-		.end	= MSM_GSBI5_PHYS + 4 - 1,
-		.name	= "gsbi_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= DMOV_HSUART_GSBI5_TX_CHAN,
-		.end	= DMOV_HSUART_GSBI5_RX_CHAN,
-		.name	= "uartdm_channels",
-		.flags	= IORESOURCE_DMA,
-	},
-	{
-		.start	= DMOV_HSUART_GSBI5_TX_CRCI,
-		.end	= DMOV_HSUART_GSBI5_RX_CRCI,
-		.name	= "uartdm_crci",
-		.flags	= IORESOURCE_DMA,
-	},
-};
-static u64 msm_uart_dm5_dma_mask = DMA_BIT_MASK(32);
-
-struct platform_device msm_device_uart_dm5 = {
-#ifdef CONFIG_SERIAL_MSM_HS_IMC
-	.name	= "msm_serial_hs_imc",
-#else
-	.name	= "msm_serial_hs",
-#endif
-	.id	= 1,
-	.num_resources	= ARRAY_SIZE(msm_uart_dm5_resources),
-	.resource	= msm_uart_dm5_resources,
-	.dev	= {
-		.dma_mask		= &msm_uart_dm5_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#endif
 
 static struct resource msm_uart_dm6_resources[] = {
 	{
@@ -498,33 +417,6 @@ struct platform_device msm8960_device_uart_gsbi5 = {
 	.resource	= resources_uart_gsbi5,
 };
 
-static struct resource resources_uart_gsbi10[] = {
-	{
-		.start	= GSBI10_UARTDM_IRQ,
-		.end	= GSBI10_UARTDM_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART10DM_PHYS,
-		.end	= MSM_UART10DM_PHYS + PAGE_SIZE - 1,
-		.name	= "uartdm_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MSM_GSBI10_PHYS,
-		.end	= MSM_GSBI10_PHYS + PAGE_SIZE - 1,
-		.name	= "gsbi_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-struct platform_device msm8960_device_uart_gsbi10 = {
-	.name	= "msm_serial_hsl",
-	.id	= 2,
-	.num_resources	= ARRAY_SIZE(resources_uart_gsbi10),
-	.resource	= resources_uart_gsbi10,
-};
-
 static struct msm_serial_hslite_platform_data uart_gsbi8_pdata = {
 	.line		= 0,
 };
@@ -556,36 +448,6 @@ struct platform_device msm8960_device_uart_gsbi8 = {
 	.resource	   = resources_uart_gsbi8,
 	.dev.platform_data = &uart_gsbi8_pdata,
 };
-
-#ifdef CONFIG_SERIAL_IRDA
-static struct resource resources_uart_gsbi12[] = {
-	{
-		.start	= GSBI12_UARTDM_IRQ,
-		.end	= GSBI12_UARTDM_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.start	= MSM_UART12DM_PHYS,
-		.end	= MSM_UART12DM_PHYS + PAGE_SIZE - 1,
-		.name	= "uartdm_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-
-	{
-		.start	= MSM_GSBI12_PHYS,
-		.end	= MSM_GSBI12_PHYS + PAGE_SIZE - 1,
-		.name	= "gsbi_resource",
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-struct platform_device msm8960_device_uart_gsbi12 = {
-	.name	= "msm_serial_irda",
-	.id	= 2,
-	.num_resources	= ARRAY_SIZE(resources_uart_gsbi12),
-	.resource	= resources_uart_gsbi12,
-};
-#endif
 
 #ifdef CONFIG_MSM_BUS_SCALING
 static struct msm_bus_vectors vidc_init_vectors[] = {
@@ -1223,8 +1085,6 @@ static struct pil_q6v4_pdata msm_8960_q6_mss_fw_data = {
 	.strap_ahb_lower = 0x00000080,
 	.aclk_reg = SFAB_MSS_Q6_FW_ACLK_CTL,
 	.jtag_clk_reg = MSS_Q6FW_JTAG_CLK_CTL,
-	.xo1_id = MSM_XO_TCXO_A0,
-	.xo2_id = MSM_XO_TCXO_A1,
 	.name = "modem_fw",
 	.depends = "q6",
 	.pas_id = PAS_MODEM_FW,
@@ -1426,7 +1286,7 @@ static struct smd_subsystem_config smd_config_list[] = {
 		.edge = SMD_APPS_WCNSS,
 
 		.smd_int.irq_name = "wcnss_a11",
-		.smd_int.flags = IRQF_TRIGGER_RISING,
+		.smd_int.flags = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME,
 		.smd_int.irq_id = -1,
 		.smd_int.device_name = "smd_dev",
 		.smd_int.dev_id = 0,
@@ -1435,7 +1295,7 @@ static struct smd_subsystem_config smd_config_list[] = {
 		.smd_int.out_offset = 0x8,
 
 		.smsm_int.irq_name = "wcnss_a11_smsm",
-		.smsm_int.flags = IRQF_TRIGGER_RISING,
+		.smsm_int.flags = IRQF_TRIGGER_RISING | IRQF_EARLY_RESUME,
 		.smsm_int.irq_id = -1,
 		.smsm_int.device_name = "smd_smsm",
 		.smsm_int.dev_id = 0,
@@ -2299,19 +2159,11 @@ struct msm_dai_auxpcm_pdata auxpcm_pdata = {
 	.mode_16k = {
 		.mode = AFE_PCM_CFG_MODE_PCM,
 		.sync = AFE_PCM_CFG_SYNC_INT,
-#ifdef CONFIG_BT_WBS_BRCM
-		.frame = AFE_PCM_CFG_FRM_128BPF,
-#else
 		.frame = AFE_PCM_CFG_FRM_256BPF,
-#endif
 		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
 		.slot = 0,
 		.data = AFE_PCM_CFG_CDATAOE_MASTER,
-#ifdef CONFIG_BT_WBS_BRCM
-		.pcm_clk_rate = 2048000,
-#else
 		.pcm_clk_rate = 4096000,
-#endif
 	}
 };
 

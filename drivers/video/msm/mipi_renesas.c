@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <mach/debug_display.h>
 #include <mach/panel_id.h>
+#include <mach/msm_rtb_enable.h>
 
 static struct mipi_dsi_panel_platform_data *mipi_renesas_pdata;
 

@@ -86,6 +86,7 @@ static int rmnet_usb_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct usbnet		*unet;
 	struct rmnet_ctrl_dev	*dev;
+	int			time = 0;
 	int			retval = 0;
 
 	unet = usb_get_intfdata(iface);
@@ -105,17 +106,19 @@ static int rmnet_usb_suspend(struct usb_interface *iface, pm_message_t message)
 
 	retval = usbnet_suspend(iface, message);
 	if (!retval) {
-		retval = rmnet_usb_ctrl_suspend(dev);
-		if (retval != 0 ) {
-			dev_dbg(&iface->dev,
-                        "%s: device is busy(rmnet ctrl channel) can not suspend\n", __func__);
-			usbnet_resume(iface);
+		if (message.event & PM_EVENT_SUSPEND) {
+			time = usb_wait_anchor_empty_timeout(&dev->tx_submitted,
+								1000);
+			if (!time)
+				usb_kill_anchored_urbs(&dev->tx_submitted);
+
+			retval = rmnet_usb_ctrl_stop_rx(dev);
+			iface->dev.power.power_state.event = message.event;
 		}
-		iface->dev.power.power_state.event = message.event;
-	} else {
-		dev_dbg(&iface->dev,
+		
+		} else
+		dev_info(&iface->dev,
 			"%s: device is busy can not suspend\n", __func__);
-	}
 
 fail:
 	return retval;
@@ -155,13 +158,6 @@ static int rmnet_usb_resume(struct usb_interface *iface)
 fail:
 	return retval;
 }
-
-int rmnet_usb_reset_resume(struct usb_interface *intf)
-{
-	pr_info("%s intf %p\n", __func__, intf);
-	return rmnet_usb_resume(intf);
-}
-
 
 static int rmnet_usb_bind(struct usbnet *usbnet, struct usb_interface *iface)
 {
@@ -661,7 +657,6 @@ static struct usb_driver rmnet_usb = {
 	.disconnect = rmnet_usb_disconnect,
 	.suspend    = rmnet_usb_suspend,
 	.resume     = rmnet_usb_resume,
-	.reset_resume     = rmnet_usb_reset_resume,
 	.supports_autosuspend = true,
 };
 

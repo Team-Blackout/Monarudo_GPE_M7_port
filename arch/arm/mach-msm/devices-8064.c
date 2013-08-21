@@ -97,11 +97,6 @@
 #define MDM2AP_PBLRDY			46
 
 
-struct platform_device msm8064_device_acpuclk = {
-	.name		= "acpuclk-8064",
-	.id		= -1,
-};
-
 static struct msm_watchdog_pdata msm_watchdog_pdata = {
 	.pet_time = 8000,
 	.bark_time = 18000,
@@ -162,41 +157,14 @@ static struct resource resources_uart_gsbi1[] = {
 		.name	= "gsbi_resource",
 		.flags	= IORESOURCE_MEM,
 	},
-#ifdef CONFIG_QSC_MODEM
-	{
-		.start  = DMOV_APQ8064_HSUART_GSBI1_TX_CHAN,
-		.end    = DMOV_APQ8064_HSUART_GSBI1_RX_CHAN,
-		.name   = "uartdm_channels",
-		.flags  = IORESOURCE_DMA,
-	},
-	{
-		.start  = DMOV_APQ8064_HSUART_GSBI1_TX_CRCI,
-		.end    = DMOV_APQ8064_HSUART_GSBI1_RX_CRCI,
-		.name   = "uartdm_crci",
-		.flags  = IORESOURCE_DMA,
-	},
-#endif
 };
-#ifdef CONFIG_QSC_MODEM
-static u64 msm_uart_dm1_dma_mask = DMA_BIT_MASK(32);
-struct platform_device apq8064_device_uart_gsbi1 = {
-	.name	= "msm_serial_hs",
-	.id	= 1,
-	.num_resources	= ARRAY_SIZE(resources_uart_gsbi1),
-	.resource	= resources_uart_gsbi1,
-	.dev    = {
-	.dma_mask = &msm_uart_dm1_dma_mask,
-	.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
-};
-#else
+
 struct platform_device apq8064_device_uart_gsbi1 = {
 	.name	= "msm_serial_hsl",
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_uart_gsbi1),
 	.resource	= resources_uart_gsbi1,
 };
-#endif
 
 static struct resource resources_uart_gsbi2[] = {
 	{
@@ -290,7 +258,7 @@ struct platform_device apq8064_device_uart_gsbi3 = {
 	.id	= 2,
 #elif defined CONFIG_SERIAL_CIR
 	.name	= "msm_serial_cir",
-	.id	= 2,
+	.id	= 3,
 #else
 	.name	= "msm_serial_hsl",
 	.id	= 0,
@@ -361,39 +329,6 @@ static struct resource resources_qup_i2c_gsbi1[] = {
 		.name	= "i2c_sda",
 		.start	= 20,
 		.end	= 20,
-		.flags	= IORESOURCE_IO,
-	},
-};
-
-static struct resource resources_qup_i2c_gsbi7[] = {
-	{
-		.name	= "gsbi_qup_i2c_addr",
-		.start	= MSM_GSBI7_PHYS,
-		.end	= MSM_GSBI7_PHYS + 4 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "qup_phys_addr",
-		.start	= MSM_GSBI7_QUP_PHYS,
-		.end	= MSM_GSBI7_QUP_PHYS + MSM_QUP_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "qup_err_intr",
-		.start	= GSBI7_QUP_IRQ,
-		.end	= GSBI7_QUP_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "i2c_clk",
-		.start	= 85,
-		.end	= 85,
-		.flags	= IORESOURCE_IO,
-	},
-	{
-		.name	= "i2c_sda",
-		.start	= 84,
-		.end	= 84,
 		.flags	= IORESOURCE_IO,
 	},
 };
@@ -520,13 +455,6 @@ struct platform_device mpq8064_device_qup_i2c_gsbi5 = {
 	.resource	= resources_qup_i2c_gsbi5,
 };
 
-struct platform_device apq8064_device_qup_i2c_gsbi7 = {
-	.name		= "qup_i2c",
-	.id		= 7,
-	.num_resources	= ARRAY_SIZE(resources_qup_i2c_gsbi7),
-	.resource	= resources_qup_i2c_gsbi7,
-};
-
 static struct resource resources_uart_gsbi7[] = {
 	{
 		.start	= GSBI7_UARTDM_IRQ,
@@ -636,19 +564,11 @@ struct msm_dai_auxpcm_pdata apq_auxpcm_pdata = {
 	.mode_16k = {
 		.mode = AFE_PCM_CFG_MODE_PCM,
 		.sync = AFE_PCM_CFG_SYNC_INT,
-#ifdef CONFIG_BT_WBS_BRCM
-		.frame = AFE_PCM_CFG_FRM_128BPF,
-#else
 		.frame = AFE_PCM_CFG_FRM_256BPF,
-#endif
 		.quant = AFE_PCM_CFG_QUANT_LINEAR_NOPAD,
 		.slot = 0,
 		.data = AFE_PCM_CFG_CDATAOE_MASTER,
-#ifdef CONFIG_BT_WBS_BRCM
-		.pcm_clk_rate = 2048000,
-#else
 		.pcm_clk_rate = 4096000,
-#endif
 	}
 };
 
@@ -1177,13 +1097,13 @@ static struct msm_bus_vectors vidc_venc_1080p_vectors[] = {
 		.src = MSM_BUS_MASTER_VIDEO_ENC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 372244480,
-		.ib  = 3200000000U,
+		.ib  = 2560000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_VIDEO_DEC,
 		.dst = MSM_BUS_SLAVE_EBI_CH0,
 		.ab  = 501219328,
-		.ib  = 3200000000U,
+		.ib  = 2560000000U,
 	},
 	{
 		.src = MSM_BUS_MASTER_AMPSS_M0,
@@ -2398,9 +2318,6 @@ static uint16_t msm_mpm_bypassed_apps_irqs[] __initdata = {
 	RIVA_APPS_WLAN_SMSM_IRQ,
 	RIVA_APPS_WLAN_RX_DATA_AVAIL_IRQ,
 	RIVA_APPS_WLAN_DATA_XFER_DONE_IRQ,
-#if defined (CONFIG_MACH_M7_UL) || defined (CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY) || defined(CONFIG_MACH_DUMMY)
-	INT_KEY_HP,
-#endif
 };
 
 struct msm_mpm_device_data apq8064_mpm_dev_data __initdata = {

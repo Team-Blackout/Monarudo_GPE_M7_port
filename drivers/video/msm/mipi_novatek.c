@@ -1669,7 +1669,7 @@ static struct dsi_cmd_desc backlight_cmd[] = {
 
 static void mipi_novatek_set_backlight(struct msm_fb_data_type *mfd)
 {
-	if ((mipi_novatek_pdata && mipi_novatek_pdata->enable_wled_bl_ctrl)
+	if ((mipi_novatek_pdata->enable_wled_bl_ctrl)
 	    && (wled_trigger_initialized)) {
 		led_trigger_event(bkl_led_trigger, mfd->bl_level);
 		return;
@@ -1768,7 +1768,7 @@ static ssize_t mipi_dsi_3d_barrier_read(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	return snprintf((char *)buf, sizeof((size_t) *buf), "%u\n", barrier_mode);
+	return snprintf((char *)buf, sizeof(buf), "%u\n", barrier_mode);
 }
 
 static ssize_t mipi_dsi_3d_barrier_write(struct device *dev,

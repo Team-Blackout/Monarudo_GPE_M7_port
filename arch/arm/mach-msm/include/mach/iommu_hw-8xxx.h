@@ -16,13 +16,20 @@
 #define CTX_SHIFT 12
 
 #define GET_GLOBAL_REG(reg, base) (readl_relaxed((base) + (reg)))
-#define GET_CTX_REG(reg, base, ctx) \
-			(readl_relaxed((base) + (reg) + ((ctx) << CTX_SHIFT)))
 
-#define SET_GLOBAL_REG(reg, base, val)	writel_relaxed((val), ((base) + (reg)))
+#define GET_CTX_REG(reg, base, ctx) (readl_relaxed((base) + (reg) + ((ctx) << CTX_SHIFT)))
+
+#define SET_GLOBAL_REG(reg, base, val) \
+do {\
+	writel_relaxed((val), ((base) + (reg)));\
+	mb();\
+} while (0);
 
 #define SET_CTX_REG(reg, base, ctx, val) \
-		writel_relaxed((val), ((base) + (reg) + ((ctx) << CTX_SHIFT)))
+do {\
+	writel_relaxed((val), ((base) + (reg) + ((ctx) << CTX_SHIFT)));\
+	mb();\
+} while (0);
 
 #define SET_GLOBAL_REG_N(b, n, r, v) SET_GLOBAL_REG(b, ((r) + (n << 2)), (v))
 #define GET_GLOBAL_REG_N(b, n, r)    GET_GLOBAL_REG(b, ((r) + (n << 2)))
@@ -36,15 +43,16 @@
 #define SET_CONTEXT_FIELD(b, c, r, F, v)	\
 	SET_FIELD(((b) + (r) + ((c) << CTX_SHIFT)), F##_MASK, F##_SHIFT, (v))
 
-#define GET_FIELD(addr, mask, shift) ((readl_relaxed(addr) >> (shift)) & (mask))
+#define GET_FIELD(addr, mask, shift) \
+	((readl_relaxed(addr) >> (shift)) & (mask))
 
 #define SET_FIELD(addr, mask, shift, v) \
 do { \
 	int t = readl_relaxed(addr); \
 	writel_relaxed((t & ~((mask) << (shift))) + (((v) & \
 		       (mask)) << (shift)), addr);\
-} while (0)
-
+	mb();\
+} while (0);
 
 #define NUM_FL_PTE	4096
 #define NUM_SL_PTE	256

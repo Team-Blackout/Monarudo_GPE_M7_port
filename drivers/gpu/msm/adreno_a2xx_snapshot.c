@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,6 +14,7 @@
 #include "kgsl.h"
 #include "adreno.h"
 #include "kgsl_snapshot.h"
+#include <mach/msm_rtb_enable.h>
 
 #define DEBUG_SECTION_SZ(_dwords) (((_dwords) * sizeof(unsigned int)) \
 		+ sizeof(struct kgsl_snapshot_debug))
@@ -223,7 +224,6 @@ void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 	int *remain, int hang)
 {
 	struct kgsl_device *device = &adreno_dev->dev;
-	struct kgsl_snapshot_registers_list list;
 	struct kgsl_snapshot_registers regs;
 	unsigned int pmoverride;
 
@@ -240,13 +240,10 @@ void *a2xx_snapshot(struct adreno_device *adreno_dev, void *snapshot,
 		regs.count = a225_registers_count;
 	}
 
-	list.registers = &regs;
-	list.count = 1;
-
 	
 	snapshot = kgsl_snapshot_add_section(device,
 		KGSL_SNAPSHOT_SECTION_REGS, snapshot, remain,
-		kgsl_snapshot_dump_regs, &list);
+		kgsl_snapshot_dump_regs, &regs);
 
 	
 	snapshot = kgsl_snapshot_indexed_registers(device, snapshot,

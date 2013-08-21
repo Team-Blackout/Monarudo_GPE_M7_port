@@ -1139,10 +1139,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 #endif
 
 #ifdef CONFIG_DEBUG_MUTEXES
-	
-	p->blocked_on = NULL;
-	p->blocked_by = NULL;
-	p->blocked_since = 0;
+	p->blocked_on = NULL; 
 #endif
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 	p->memcg_batch.do_batch = 0;
@@ -1382,20 +1379,6 @@ struct task_struct * __cpuinit fork_idle(int cpu)
 	return task;
 }
 
-static ATOMIC_NOTIFIER_HEAD(task_fork_notifier);
-
-int task_fork_register(struct notifier_block *n)
-{
-    return atomic_notifier_chain_register(&task_fork_notifier, n);
-}
-EXPORT_SYMBOL(task_fork_register);
-
-int task_fork_unregister(struct notifier_block *n)
-{
-    return atomic_notifier_chain_unregister(&task_fork_notifier, n);
-}
-EXPORT_SYMBOL(task_fork_unregister);
-
 long do_fork(unsigned long clone_flags,
 	      unsigned long stack_start,
 	      struct pt_regs *regs,
@@ -1433,7 +1416,6 @@ long do_fork(unsigned long clone_flags,
 		struct completion vfork;
 
 		trace_sched_process_fork(current, p);
-		atomic_notifier_call_chain(&task_fork_notifier, 0, p);
 
 		nr = task_pid_vnr(p);
 

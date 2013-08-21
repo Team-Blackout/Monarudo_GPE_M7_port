@@ -17,6 +17,7 @@
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
 #include "a2xx_reg.h"
+#include <mach/msm_rtb_enable.h>
 
 struct msm_priv {
 	struct kgsl_device *device;

@@ -1667,10 +1667,12 @@ int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
 			if (unlikely(!skb))
 				goto out;
 
+#ifdef CONFIG_HTC_NETWORK_MODIFY
 	if (IS_ERR(skb) || (!skb)) {
 		printk(KERN_ERR "[CORE] skb is NULL in %s!\n", __func__);
 		goto out;
 	}
+#endif
 
 			skb->vlan_tci = 0;
 		}
@@ -1980,9 +1982,7 @@ recursion_alert:
 	rc = -ENETDOWN;
 	rcu_read_unlock_bh();
 
-    if (!IS_ERR(skb) && (skb))
-	    kfree_skb(skb);
-
+	kfree_skb(skb);
 	return rc;
 out:
 	rcu_read_unlock_bh();

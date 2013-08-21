@@ -32,6 +32,7 @@
 #include "mdp.h"
 #include "msm_fb.h"
 #include "mddihost.h"
+#include <mach/msm_rtb_enable.h>
 
 static uint32 mdp_last_dma2_update_width;
 static uint32 mdp_last_dma2_update_height;
@@ -417,9 +418,6 @@ void mdp_dma2_update(struct msm_fb_data_type *mfd)
 {
 	MDPIBUF *iBuf;
 	uint32 upper_height;
-
-	if (!mfd)
-		return;
 
 	if (mfd->panel.type == EXT_MDDI_PANEL) {
 		mdp_dma2_update_sub(mfd);

@@ -286,15 +286,8 @@ static void skb_release_data(struct sk_buff *skb)
 			       &skb_shinfo(skb)->dataref)) {
 		if (skb_shinfo(skb)->nr_frags) {
 			int i;
-			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++){
-				
-				if (ZERO_OR_NULL_PTR(skb_frag_page(&skb_shinfo(skb)->frags[i]))) {
-					printk("Error! Trying to unref NULL skb frag page\n");
-					break;
-				}
-				
+			for (i = 0; i < skb_shinfo(skb)->nr_frags; i++)
 				skb_frag_unref(skb, i);
-            }
 		}
 
 		if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) {
@@ -320,15 +313,12 @@ static void kfree_skbmem(struct sk_buff *skb)
 	switch (skb->fclone) {
 	case SKB_FCLONE_UNAVAILABLE:
 		kmem_cache_free(skbuff_head_cache, skb);
-		skb = NULL; 
 		break;
 
 	case SKB_FCLONE_ORIG:
 		fclone_ref = (atomic_t *) (skb + 2);
-		if (atomic_dec_and_test(fclone_ref)) {
+		if (atomic_dec_and_test(fclone_ref))
 			kmem_cache_free(skbuff_fclone_cache, skb);
-			skb = NULL; 
-		}
 		break;
 
 	case SKB_FCLONE_CLONE:
@@ -379,10 +369,8 @@ static void skb_release_all(struct sk_buff *skb)
 
 void __kfree_skb(struct sk_buff *skb)
 {
-    if ((skb) && (!IS_ERR(skb))) {
-    	skb_release_all(skb);
-    	kfree_skbmem(skb);
-    }
+	skb_release_all(skb);
+	kfree_skbmem(skb);
 }
 EXPORT_SYMBOL(__kfree_skb);
 
@@ -401,7 +389,7 @@ EXPORT_SYMBOL(kfree_skb);
 
 void consume_skb(struct sk_buff *skb)
 {
-	if ((unlikely(!skb)) || (IS_ERR(skb)))
+	if (unlikely(!skb))
 		return;
 	if (likely(atomic_read(&skb->users) == 1))
 		smp_rmb();

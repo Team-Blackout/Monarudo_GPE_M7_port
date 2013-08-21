@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,6 +19,7 @@
 #include "kgsl.h"
 #include "kgsl_pwrscale.h"
 #include "kgsl_device.h"
+#include <mach/msm_rtb_enable.h>
 
 struct kgsl_pwrscale_attribute {
 	struct attribute attr;
@@ -234,9 +235,11 @@ EXPORT_SYMBOL(kgsl_pwrscale_wake);
 void kgsl_pwrscale_busy(struct kgsl_device *device)
 {
 	if (PWRSCALE_ACTIVE(device) && device->pwrscale.policy->busy)
-		if (device->requested_state != KGSL_STATE_SLUMBER)
+		if ((!device->pwrscale.gpu_busy) &&
+			(device->requested_state != KGSL_STATE_SLUMBER))
 			device->pwrscale.policy->busy(device,
 					&device->pwrscale);
+	device->pwrscale.gpu_busy = 1;
 }
 
 void kgsl_pwrscale_idle(struct kgsl_device *device)
@@ -246,6 +249,7 @@ void kgsl_pwrscale_idle(struct kgsl_device *device)
 			device->requested_state != KGSL_STATE_SLEEP)
 			device->pwrscale.policy->idle(device,
 					&device->pwrscale);
+	device->pwrscale.gpu_busy = 0;
 }
 EXPORT_SYMBOL(kgsl_pwrscale_idle);
 
@@ -296,10 +300,8 @@ static void _kgsl_pwrscale_detach_policy(struct kgsl_device *device)
 {
 	if (device->pwrscale.policy != NULL) {
 		device->pwrscale.policy->close(device, &device->pwrscale);
-
-
 		kgsl_pwrctrl_pwrlevel_change(device,
-				device->pwrctrl.max_pwrlevel);
+				device->pwrctrl.thermal_pwrlevel);
 	}
 	device->pwrscale.policy = NULL;
 }

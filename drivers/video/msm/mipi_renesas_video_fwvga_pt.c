@@ -14,6 +14,7 @@
 #include "mipi_dsi.h"
 #include "mipi_renesas.h"
 #include <mach/panel_id.h>
+#include <mach/msm_rtb_enable.h>
 
 static struct msm_panel_info pinfo;
 

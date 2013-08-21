@@ -44,8 +44,6 @@ static unsigned int sched_nr_latency = 8;
 
 unsigned int sysctl_sched_child_runs_first __read_mostly;
 
-unsigned int __read_mostly sysctl_sched_wake_to_idle;
-
 unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
 
@@ -1686,7 +1684,7 @@ static void destroy_cfs_bandwidth(struct cfs_bandwidth *cfs_b)
 	hrtimer_cancel(&cfs_b->slack_timer);
 }
 
-static void unthrottle_offline_cfs_rqs(struct rq *rq)
+void unthrottle_offline_cfs_rqs(struct rq *rq)
 {
 	struct cfs_rq *cfs_rq;
 
@@ -1736,7 +1734,7 @@ static inline struct cfs_bandwidth *tg_cfs_bandwidth(struct task_group *tg)
 	return NULL;
 }
 static inline void destroy_cfs_bandwidth(struct cfs_bandwidth *cfs_b) {}
-static inline void unthrottle_offline_cfs_rqs(struct rq *rq) {}
+void unthrottle_offline_cfs_rqs(struct rq *rq) {}
 
 #endif 
 
@@ -2117,11 +2115,6 @@ static int select_idle_sibling(struct task_struct *p, int target)
 
 	if (target == prev_cpu && idle_cpu(prev_cpu))
 		return prev_cpu;
-
-	if (!sysctl_sched_wake_to_idle &&
-	    !(current->flags & PF_WAKE_UP_IDLE) &&
-	    !(p->flags & PF_WAKE_UP_IDLE))
-		return target;
 
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	for_each_lower_domain(sd) {
@@ -3942,9 +3935,6 @@ static void rq_online_fair(struct rq *rq)
 static void rq_offline_fair(struct rq *rq)
 {
 	update_sysctl();
-
-	
-	unthrottle_offline_cfs_rqs(rq);
 }
 
 #endif 

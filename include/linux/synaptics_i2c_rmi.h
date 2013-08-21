@@ -25,7 +25,6 @@
 #define SYNAPTICS_3200_NAME "synaptics-3200"
 #define SYNAPTICS_FW_3_2_PACKRAT 1115999
 #define SYNAPTICS_FW_NOCAL_PACKRAT 1293981
-#define SYNAPTICS_FW_2IN1_PACKRAT 1396865
 
 
 #define SYN_CONFIG_SIZE 32 * 16
@@ -78,7 +77,6 @@ struct synaptics_i2c_rmi_platform_data {
 				
 				
 	int (*power)(int on);	
-	int (*lpm_power)(int on);
 	struct synaptics_virtual_key *virtual_key;
 	uint8_t virtual_key_num;
 	struct kobject *vk_obj;

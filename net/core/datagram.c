@@ -86,12 +86,7 @@ struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
 {
 	struct sk_buff *skb;
 	long timeo;
-	int error = 0;
-
-	if ((!sk) || (IS_ERR(sk)))
-		goto no_packet;
-
-	error = sock_error(sk);
+	int error = sock_error(sk);
 
 	if (error)
 		goto no_packet;

@@ -985,7 +985,6 @@ static void msm_serial_hs_rx_tlet(unsigned long tlet_ptr)
 			msm_uport->rx.buffer_pending |= TTY_OVERRUN;
 		uport->icount.buf_overrun++;
 		error_f = 1;
-		printk(KERN_ERR "[BT]***OVERRUN:%d\n", uport->icount.buf_overrun);
 	}
 
 	if (!(uport->ignore_status_mask & INPCK))
@@ -995,7 +994,6 @@ static void msm_serial_hs_rx_tlet(unsigned long tlet_ptr)
 		
 		uport->icount.parity++;
 		error_f = 1;
-		printk(KERN_ERR "[BT]***PARITY FRAME error:%d\n", uport->icount.parity);
 		if (uport->ignore_status_mask & IGNPAR) {
 			retval = tty_insert_flip_char(tty, 0, TTY_PARITY);
 			if (!retval)
@@ -1685,13 +1683,6 @@ static irqreturn_t msm_hs_wakeup_isr(int irq, void *dev)
 		#endif
 
 		
-		if (msm_uport->clk_state == MSM_HS_CLK_PORT_OFF )  {
-			spin_unlock_irqrestore(&uport->lock, flags);
-			return IRQ_HANDLED;
-			
-		}
-
-		
 		if (msm_uport->rx.is_brcm_rx_wake_locked == 0) {
 			msm_uport->rx.is_brcm_rx_wake_locked = 1;
 			wake_lock(&msm_uport->rx.brcm_rx_wake_lock);
@@ -2221,7 +2212,6 @@ static void msm_hs_shutdown(struct uart_port *uport)
 {
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
 
-	printk(KERN_INFO "[BT]=+ S DN +=\n");
 	BUG_ON(msm_uport->rx.flush < FLUSH_STOP);
 	tasklet_kill(&msm_uport->tx.tlet);
 #if 1 
@@ -2251,10 +2241,6 @@ static void msm_hs_shutdown(struct uart_port *uport)
 	wake_lock_timeout(&msm_uport->rx.brcm_rx_wake_lock, HZ / 2);
 	
 	wake_lock_timeout(&msm_uport->rx.wake_lock, HZ / 10);
-
-	
-	if (use_low_power_wakeup(msm_uport))
-		irq_set_irq_wake(msm_uport->wakeup.irq, 0);
 #endif
 
 	msm_uport->imr_reg = 0;
@@ -2272,6 +2258,9 @@ static void msm_hs_shutdown(struct uart_port *uport)
 
 	dma_unmap_single(uport->dev, msm_uport->tx.dma_base,
 			 UART_XMIT_SIZE, DMA_TO_DEVICE);
+
+	if (use_low_power_wakeup(msm_uport))
+		irq_set_irq_wake(msm_uport->wakeup.irq, 0);
 
 	
 	free_irq(uport->irq, msm_uport);

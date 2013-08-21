@@ -71,7 +71,7 @@
 #ifdef CONFIG_MSM_L2_ERP_1BIT_PANIC
 #define ERP_1BIT_ERR(a) panic(a)
 #else
-#define ERP_1BIT_ERR(a) WARN(1, a)
+#define ERP_1BIT_ERR(a) do { } while (0)
 #endif
 
 #ifdef CONFIG_MSM_L2_ERP_PRINT_ACCESS_ERRORS
@@ -83,7 +83,7 @@
 #ifdef CONFIG_MSM_L2_ERP_2BIT_PANIC
 #define ERP_2BIT_ERR(a) panic(a)
 #else
-#define ERP_2BIT_ERR(a) WARN(1, a)
+#define ERP_2BIT_ERR(a) do { } while (0)
 #endif
 
 #define MODULE_NAME "msm_cache_erp"

@@ -27,7 +27,6 @@
 #include <mach/subsystem_restart.h>
 #include <mach/subsystem_notif.h>
 #include <mach/socinfo.h>
-#include <mach/restart.h>
 #include <mach/msm_smsm.h>
 #include <mach/board_htc.h>
 
@@ -78,6 +77,26 @@ static void restart_modem(void)
 	subsystem_restart("modem");
 }
 
+static void modem_wdog_check(struct work_struct *work)
+{
+	void __iomem *q6_sw_wdog_addr;
+	u32 regval;
+
+	q6_sw_wdog_addr = ioremap_nocache(Q6_SW_WDOG_ENABLE, 4);
+	if (!q6_sw_wdog_addr)
+		panic("Unable to check modem watchdog status.\n");
+
+	regval = readl_relaxed(q6_sw_wdog_addr);
+	if (!regval) {
+		pr_err("modem-8960: Modem watchdog wasn't activated!. Restarting the modem now.\n");
+		restart_modem();
+	}
+
+	iounmap(q6_sw_wdog_addr);
+}
+
+static DECLARE_DELAYED_WORK(modem_wdog_check_work, modem_wdog_check);
+
 static void smsm_state_cb(void *data, uint32_t old_state, uint32_t new_state)
 {
 	
@@ -86,13 +105,7 @@ static void smsm_state_cb(void *data, uint32_t old_state, uint32_t new_state)
 
 	if (new_state & SMSM_RESET) {
 		pr_err("Probable fatal error on the modem.\n");
-		if (smd_smsm_erase_efs()) {
-			pr_err("Unrecoverable efs, need to reboot and erase"
-					"modem_st1/st2 partitions...\n");
-			msm_restart(RESTART_MODE_ERASE_EFS, "force-hard");
-		} else {
-			restart_modem();
-		}
+		restart_modem();
 	}
 }
 
@@ -100,6 +113,8 @@ static int modem_shutdown(const struct subsys_data *subsys)
 {
 	void __iomem *q6_fw_wdog_addr;
 	void __iomem *q6_sw_wdog_addr;
+
+	cancel_delayed_work(&modem_wdog_check_work);
 
 	q6_fw_wdog_addr = ioremap_nocache(Q6_FW_WDOG_ENABLE, 4);
 	if (!q6_fw_wdog_addr)
@@ -133,6 +148,8 @@ static int modem_powerup(const struct subsys_data *subsys)
 	pil_force_boot("modem");
 	enable_irq(Q6FW_WDOG_EXPIRED_IRQ);
 	enable_irq(Q6SW_WDOG_EXPIRED_IRQ);
+	schedule_delayed_work(&modem_wdog_check_work,
+				msecs_to_jiffies(MODEM_WDOG_CHECK_TIMEOUT_MS));
 	return 0;
 }
 
@@ -163,7 +180,7 @@ static int modem_ramdump(int enable,
 {
 	int ret = 0;
 
-	if (enable&&(get_radio_flag()&0x8)) {
+	if (enable) {
 		ret = do_ramdump(modemsw_ramdump_dev, modemsw_segments,
 			ARRAY_SIZE(modemsw_segments));
 
@@ -322,14 +339,8 @@ static int __init modem_8960_init(void)
 		goto out;
 	}
 
-
-	if (get_kernel_flag() & KERNEL_FLAG_ENABLE_SSR_MODEM) {
-	#ifdef CONFIG_MSM_MODEM_SSR_ENABLE
-		enable_modem_ssr = 0;
-	#else
-                enable_modem_ssr = 1;
-	#endif
-	}
+	if (get_kernel_flag() & KERNEL_FLAG_ENABLE_SSR_MODEM)
+		enable_modem_ssr = 1;
 
 	pr_info("%s: enable_modem_ssr set to %d\n", __func__, enable_modem_ssr);
 

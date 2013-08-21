@@ -63,15 +63,16 @@ static int __devinit lvds_chimei_probe(struct platform_device *pdev)
 {
 	int rc = 0;
 
-	if (pdev->id == 0)
+	if (pdev->id == 0) {
 		cm_pdata = pdev->dev.platform_data;
-
-	if (cm_pdata == NULL) {
-		pr_err("%s: no PWM gpio specified\n", __func__);
+		if (cm_pdata == NULL)
+			pr_err("%s: no PWM gpio specified\n", __func__);
 		return 0;
-	} else
+	}
+
+	if (cm_pdata != NULL)
 		bl_lpm = pwm_request(cm_pdata->gpio[0],
-				"backlight");
+			"backlight");
 
 	if (bl_lpm == NULL || IS_ERR(bl_lpm)) {
 		pr_err("%s pwm_request() failed\n", __func__);
