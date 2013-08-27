@@ -3293,12 +3293,9 @@ static struct net_device_ops dhd_ops_virt = {
 	.ndo_set_multicast_list = dhd_set_multicast_list,
 #endif
 };
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31)) */
-
-/*HTC_CSP_START*/
+#endif 
 
 extern int system_rev;
-
 #define XA		0
 #define XB		1
 #define XC		2
